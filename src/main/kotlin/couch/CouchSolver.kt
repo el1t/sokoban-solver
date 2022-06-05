@@ -122,7 +122,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListMap<Int, MutableSet<BoardState>>()
+		val visitedBoards = ConcurrentSkipListMap<Int, MutableMap<BoardState, Int>>()
 		val pendingBoards = PriorityBlockingQueue<Pair<BoardState, List<Input>>>(10) { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
@@ -172,11 +172,11 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 
-				val visitedList = visitedBoards.getOrPut(newBoard.hashCode()) { mutableSetOf() }
-				if (newBoard in visitedList) {
+				val visitedList = visitedBoards.getOrPut(newBoard.hashCode()) { mutableMapOf() }
+				if ((visitedList[newBoard] ?: Int.MAX_VALUE) <= newInputs.size) {
 					continue
 				}
-				visitedList += newBoard
+				visitedList[newBoard] = newInputs.size
 				pendingBoards += newBoard to newInputs
 			}
 		}
