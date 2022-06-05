@@ -122,8 +122,8 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListSet<BoardState>()
-		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
+		val visitedBoards = ConcurrentSkipListMap<Int, MutableList<BoardState>>()
+		val pendingBoards = PriorityBlockingQueue<Pair<BoardState, List<Input>>>(10) { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> when (val stateComparison = a.first.compareTo(b.first)) {
 					0 -> -1 // a.hashCode().compareTo(b.hashCode())
@@ -175,10 +175,11 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 
-				if (newBoard in visitedBoards) {
+				val visitedList = visitedBoards.getOrPut(newBoard.hashCode()) { mutableListOf() }
+				if (newBoard in visitedList) {
 					continue
 				}
-				visitedBoards += newBoard
+				visitedList += newBoard
 				pendingBoards += newBoard to newInputs
 			}
 		}
@@ -199,11 +200,11 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 			}
 			pool.submit {
 				while (solution.get() == null) {
-					var nextJob = pendingBoards.pollFirst()
+					var nextJob = pendingBoards.poll()
 					if (nextJob == null) {
 						for (_i in 0..NUM_THREADS) {
 							TimeUnit.MILLISECONDS.sleep(100)
-							nextJob = pendingBoards.pollFirst()
+							nextJob = pendingBoards.poll()
 							if (nextJob != null) {
 								break
 							}

@@ -1,7 +1,7 @@
 package couch
 
 @JvmInline
-value class CouchPosition(private val serializedPosition: UInt) {
+value class CouchPosition(private val serializedPosition: UInt) : Comparable<CouchPosition> {
 	enum class Orientation {
 		NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST,
 	}
@@ -17,6 +17,13 @@ value class CouchPosition(private val serializedPosition: UInt) {
 
 	val start: Position get() = Position((serializedPosition shr 16).toUShort())
 	val end: Position get() = Position((serializedPosition and 0xFFFFu).toUShort())
+
+	// start.y == end.y
+	val isHorizontal: Boolean
+		get() = (((serializedPosition shr 16) xor serializedPosition)) and 0xFFu == 0u
+	// start.x == end.x
+	val isVertical: Boolean
+		get() = (((serializedPosition shr 16) xor serializedPosition)) shr 8 == 0u
 
 	val orientation: Orientation
 		get() {
@@ -46,4 +53,7 @@ value class CouchPosition(private val serializedPosition: UInt) {
 	override fun toString(): String = "CouchPosition(" +
 			"start=[${start.x}, ${start.y}], " +
 			"end=[${end.x}, ${end.y}])"
+
+	override fun compareTo(other: CouchPosition): Int =
+		serializedPosition.compareTo(other.serializedPosition)
 }

@@ -7,6 +7,12 @@ sealed class Item {
 }
 
 data class Couch(
-	val color: UByte,
+	val color: CouchColor,
 	val position: CouchPosition,
-) : Item()
+) : Item(), Comparable<Couch> {
+	override fun compareTo(other: Couch): Int =
+		when (val comparison = color.compareTo(other.color)) {
+			0 -> position.compareTo(other.position)
+			else -> comparison
+		}
+}

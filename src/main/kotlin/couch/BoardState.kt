@@ -13,14 +13,22 @@ data class BoardState(
 
 	override fun compareTo(other: BoardState): Int =
 		when {
-			playerPosition != other.playerPosition -> playerPosition.serializedPosition.compareTo(
-				other.playerPosition.serializedPosition
+			playerPosition != other.playerPosition -> playerPosition.compareTo(
+				other.playerPosition
 			)
 			satisfiedGoals != other.satisfiedGoals -> satisfiedGoals.compareTo(other.satisfiedGoals)
 			couches.size != other.couches.size -> couches.size.compareTo(other.couches.size)
 			couches.containsAll(other.couches) -> 0
+			else -> {
+				var ret = 0
+				couches.indices.forEach { i ->
+					ret = couches[i].compareTo(other.couches[i])
+					if (ret != 0) return@forEach
+				}
+				ret
+			}
 			// look away
-			else -> -1 // couches.hashCode().compareTo(other.couches.hashCode())
+//			else -> couches.hashCode().compareTo(other.couches.hashCode())
 		}
 
 	fun findItemAt(position: Position, metadata: BoardMetadata): Item =
@@ -37,8 +45,8 @@ data class BoardState(
 		goals: GoalList,
 	): BoardState {
 		val (oldCouch, newCouch) = oldToNewCouch
-		val oldDelta = if (BoardState.validateCouch(oldCouch, goals)) -1 else 0
-		val newDelta = if (BoardState.validateCouch(newCouch, goals)) 1 else 0
+		val oldDelta = if (validateCouch(oldCouch, goals)) -1 else 0
+		val newDelta = if (validateCouch(newCouch, goals)) 1 else 0
 
 		return copy(
 			playerPosition = playerPosition,
@@ -49,7 +57,16 @@ data class BoardState(
 
 	fun isSolved(goals: GoalList) = satisfiedGoals == goals.size
 
-	fun isCouchStuck(couch: Couch, metaData: BoardMetadata): Boolean {
+	fun isCouchStuck(couch: Couch, metadata: BoardMetadata): Boolean {
+		if (validateCouch(couch, metadata.goals)) {
+			return false
+		}
+
+		// check if couch is stuck on wall
+		if (metadata.isFlatAgainstWall(couch.position)) {
+			return !metadata.isCouchOnCorrectWall(couch)
+		}
+
 		return false
 	}
 

@@ -1,7 +1,7 @@
 package couch
 
 @JvmInline
-value class Position(val serializedPosition: UShort) {
+value class Position(val serializedPosition: UShort) : Comparable<Position> {
 	companion object {
 		fun fromString(input: String): Position {
 			val (x, y) = input.split(',').map(String::toUInt)
@@ -14,6 +14,7 @@ value class Position(val serializedPosition: UShort) {
 	val x: UInt get() = serializedPosition.toUInt() shr 8
 	val y: UInt get() = (serializedPosition and 255u).toUInt()
 
+	fun copy(x: UInt = this.x, y: UInt = this.y): Position = Position(x, y)
 
 	operator fun contains(point: Position): Boolean =
 		point.x in 0u until x && point.y in 0u until y
@@ -27,6 +28,9 @@ value class Position(val serializedPosition: UShort) {
 		x = (x.toInt() - delta.x).toUInt(),
 		y = (y.toInt() - delta.y).toUInt(),
 	)
+
+	override fun compareTo(other: Position): Int =
+		serializedPosition.compareTo(other.serializedPosition)
 
 	override fun toString(): String = "Position(x=$x, y=$y)"
 }
