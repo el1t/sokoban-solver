@@ -2,10 +2,9 @@ package couch
 
 import java.util.PriorityQueue
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-const val NUM_THREADS = 8
+const val NUM_THREADS = 10
 
 enum class Input(val delta: PositionDelta) {
 	LEFT(PositionDelta(-1, 0)),
@@ -123,7 +122,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 
 	fun findShortestSolution(): List<Input>? {
 		val visitedBoards = ConcurrentSkipListMap<Int, MutableMap<BoardState, Int>>()
-		val pendingBoards = PriorityBlockingQueue<Pair<BoardState, List<Input>>>(10) { a, b ->
+		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
 				else -> sizeComparison
@@ -188,18 +187,22 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 				{ inputs: List<Input> ->
 					if (++iterationCount > 20_000) {
 						iterationCount = 0
-						println("Visited boards: ${visitedBoards.size}; latest input size: ${inputs.size}")
+						println(
+							"Visited boards: ${visitedBoards.size}; " +
+									"latest input size: ${inputs.size}; " +
+									"pending boards: ${pendingBoards.size}"
+						)
 						println("Latest inputs: ${inputs.joinToString("")}")
 					}
 				}
 			}
 			pool.submit {
 				while (solution.get() == null) {
-					var nextJob = pendingBoards.poll()
+					var nextJob = pendingBoards.pollFirst()
 					if (nextJob == null) {
 						for (_i in 0..NUM_THREADS) {
 							TimeUnit.MILLISECONDS.sleep(100)
-							nextJob = pendingBoards.poll()
+							nextJob = pendingBoards.pollFirst()
 							if (nextJob != null) {
 								break
 							}
