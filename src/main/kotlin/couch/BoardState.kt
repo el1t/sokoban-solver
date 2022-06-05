@@ -16,9 +16,11 @@ data class BoardState(
 			playerPosition != other.playerPosition -> playerPosition.serializedPosition.compareTo(
 				other.playerPosition.serializedPosition
 			)
+			satisfiedGoals != other.satisfiedGoals -> satisfiedGoals.compareTo(other.satisfiedGoals)
 			couches.size != other.couches.size -> couches.size.compareTo(other.couches.size)
+			couches.containsAll(other.couches) -> 0
 			// look away
-			else -> couches.hashCode().compareTo(other.couches.hashCode())
+			else -> -1 // couches.hashCode().compareTo(other.couches.hashCode())
 		}
 
 	fun findItemAt(position: Position, metadata: BoardMetadata): Item =

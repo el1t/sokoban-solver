@@ -51,7 +51,7 @@ fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<C
 			sizeComparison != 0 -> sizeComparison
 			a1.playerPosition != a2.playerPosition -> a1.playerPosition.serializedPosition
 				.compareTo(a2.playerPosition.serializedPosition)
-			else -> a1.inputs.hashCode().compareTo(a2.inputs.hashCode())
+			else -> -1 // a1.inputs.hashCode().compareTo(a2.inputs.hashCode())
 		}
 	}
 	val couchActions = mutableListOf<CouchAction>()
@@ -124,10 +124,12 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	fun findShortestSolution(): List<Input>? {
 		val visitedBoards = ConcurrentSkipListSet<BoardState>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
-			val sizeComparison = a.second.size.compareTo(b.second.size)
-			when {
-				sizeComparison != 0 -> sizeComparison
-				else -> a.hashCode().compareTo(b.hashCode())
+			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
+				0 -> when (val stateComparison = a.first.compareTo(b.first)) {
+					0 -> -1 // a.hashCode().compareTo(b.hashCode())
+					else -> stateComparison
+				}
+				else -> sizeComparison
 			}
 		}
 		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
