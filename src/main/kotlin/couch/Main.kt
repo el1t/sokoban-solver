@@ -18,10 +18,10 @@ fun main(args: Array<String>) {
 			continue
 		}
 
-		val board = Board.fromString(text)
+		val boardSettings = BoardSettings.fromString(text)
 
 		println("Solving...")
-		val solution = CouchSolver(board).findShortestSolution()
+		val solution = CouchSolver(boardSettings).findShortestSolution()
 		if (solution == null) {
 			println("No solution found :(")
 			continue

@@ -14,6 +14,10 @@ value class Position(val serializedPosition: UShort) {
 	val x: UInt get() = serializedPosition.toUInt() shr 8
 	val y: UInt get() = (serializedPosition and 255u).toUInt()
 
+
+	operator fun contains(point: Position): Boolean =
+		point.x in 0u until x && point.y in 0u until y
+
 	operator fun plus(delta: PositionDelta): Position = Position(
 		x = (x.toInt() + delta.x).toUInt(),
 		y = (y.toInt() + delta.y).toUInt(),

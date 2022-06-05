@@ -43,7 +43,7 @@ data class CouchAction(
 	val couch: Couch,
 )
 
-fun findPathsToCouches(board: Board): Collection<CouchAction> {
+fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<CouchAction> {
 	val visitedPositions = mutableSetOf(board.playerPosition)
 	val positionsToVisit = PriorityQueue<Action> { a1, a2 ->
 		val sizeComparison = a1.inputs.size.compareTo(a2.inputs.size)
@@ -54,7 +54,7 @@ fun findPathsToCouches(board: Board): Collection<CouchAction> {
 			else -> a1.inputs.hashCode().compareTo(a2.inputs.hashCode())
 		}
 	}
-	val visitedCouches = mutableMapOf<Pair<Position, Input>, CouchAction>()
+	val couchActions = mutableListOf<CouchAction>()
 
 	positionsToVisit += Action(board.playerPosition, emptyList())
 
@@ -62,7 +62,7 @@ fun findPathsToCouches(board: Board): Collection<CouchAction> {
 		val prevAction = positionsToVisit.remove()
 		for (input in enumValues<Input>()) {
 			val nextAction = prevAction + input
-			when (val item = board.findItemAt(nextAction.playerPosition)) {
+			when (val item = board.findItemAt(nextAction.playerPosition, metadata)) {
 				Item.OBSTACLE, Item.WALL -> continue
 				Item.EMPTY -> {
 					if (nextAction.playerPosition in visitedPositions) {
@@ -73,19 +73,12 @@ fun findPathsToCouches(board: Board): Collection<CouchAction> {
 					visitedPositions += nextAction.playerPosition
 					positionsToVisit += nextAction
 				}
-				is Couch -> {
-					val positionWithDirection = nextAction.playerPosition to input
-					if (positionWithDirection in visitedCouches) {
-						// shorter path exists
-						continue
-					}
-					visitedCouches[positionWithDirection] = nextAction.toCouchAction(item)
-				}
+				is Couch -> couchActions += nextAction.toCouchAction(item)
 			}
 		}
 	} while (positionsToVisit.isNotEmpty())
 
-	return visitedCouches.values
+	return couchActions
 }
 
 fun getNewCouchPosition(
@@ -125,23 +118,25 @@ fun CouchAction.createNewCouch(): Couch {
 	)
 }
 
-class CouchSolver(private val initialState: Board) {
+class CouchSolver(private val boardSettings: BoardSettings) {
+	private val metadata = BoardMetadata(boardSettings)
+
 	fun findShortestSolution(): List<Input>? {
 		val visitedBoards = ConcurrentSkipListSet<BoardState>()
-		val pendingBoards = ConcurrentSkipListSet<Pair<Board, List<Input>>> { a, b ->
+		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
 			val sizeComparison = a.second.size.compareTo(b.second.size)
 			when {
 				sizeComparison != 0 -> sizeComparison
 				else -> a.hashCode().compareTo(b.hashCode())
 			}
 		}
-		pendingBoards += initialState to emptyList()
+		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
 		val actionCount = AtomicInteger()
 
-		fun compute(board: Board, inputs: List<Input>) {
-			val couchActions = findPathsToCouches(board)
+		fun compute(board: BoardState, inputs: List<Input>) {
+			val couchActions = findPathsToCouches(board, metadata)
 			actionCount.accumulateAndGet(couchActions.size, Int::plus)
 			for (action in couchActions.sortedBy { it.inputs.size }) {
 				val oldCouch = action.couch
@@ -152,7 +147,7 @@ class CouchSolver(private val initialState: Board) {
 					else -> newCouch.position.end
 				}
 
-				if (board.findItemAt(newlyOccupiedPosition) != Item.EMPTY) {
+				if (board.findItemAt(newlyOccupiedPosition, metadata) != Item.EMPTY) {
 					// can't perform this action, results in invalid board
 					continue
 				}
@@ -160,9 +155,10 @@ class CouchSolver(private val initialState: Board) {
 				val newBoard = board.update(
 					action.playerPosition,
 					oldCouch to newCouch,
+					metadata.goals,
 				)
 				val newInputs = inputs + action.inputs
-				if (newBoard.isSolved) {
+				if (newBoard.isSolved(metadata.goals)) {
 					solution.getAndUpdate { oldSolution ->
 						if ((oldSolution?.size ?: Int.MAX_VALUE) > newInputs.size) {
 							newInputs
@@ -172,16 +168,15 @@ class CouchSolver(private val initialState: Board) {
 					}
 					continue
 				}
-				if (newBoard.isCouchStuck(newCouch)) {
+				if (newBoard.isCouchStuck(newCouch, metadata)) {
 					// couch is stuck on a wall
 					continue
 				}
 
-				val newBoardState = BoardState(newBoard)
-				if (newBoardState in visitedBoards) {
+				if (newBoard in visitedBoards) {
 					continue
 				}
-				visitedBoards += newBoardState
+				visitedBoards += newBoard
 				pendingBoards += newBoard to newInputs
 			}
 		}
@@ -229,7 +224,7 @@ class CouchSolver(private val initialState: Board) {
 		}
 
 		futures.forEach { it.get() }
-		pool.awaitTermination(2, TimeUnit.SECONDS)
+		pool.shutdown()
 
 		println("Considered ${actionCount.get()} total couch actions")
 		return solution.acquire
