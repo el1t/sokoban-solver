@@ -94,4 +94,33 @@ data class Board(
 			satisfiedGoals = satisfiedGoals + oldDelta + newDelta,
 		)
 	}
+
+	fun withBoardState(state: BoardState): Board = copy(
+		playerPosition = playerPosition,
+		couches = couches,
+	)
+
+	operator fun <T> Array<Array<T>>.set(index: Position, value: T) {
+		this[index.y.toInt()][index.x.toInt()] = value
+	}
+
+	fun toReadableString(): String {
+		val board =
+			Array<Array<String>>(dimensions.y.toInt()) { Array<String>(dimensions.x.toInt()) { " " } }
+		board[playerPosition] = "p"
+		obstacles.forEach {
+			board[it] = "o"
+		}
+		couches.forEach {
+			board[it.position.start] = it.color.toString()
+			board[it.position.end] = it.color.toString()
+		}
+		goals.forEach {
+			board[it.position.start] = it.color.toString()
+			board[it.position.end] = it.color.toString()
+		}
+		return "—".repeat(dimensions.x.toInt() * 2 + 1) + "\n" +
+				board.joinToString("\n") { it.joinToString(" ", "|", "|") } + "\n" +
+				"—".repeat(dimensions.x.toInt() * 2 + 1)
+	}
 }

@@ -24,15 +24,8 @@ data class Action(
 	val inputs: List<Input>,
 )
 
-fun Position.move(input: Input): Position = when (input) {
-	Input.LEFT -> Position(x - 1u, y)
-	Input.RIGHT -> Position(x + 1u, y)
-	Input.UP -> Position(x, y - 1u)
-	Input.DOWN -> Position(x, y + 1u)
-}
-
 operator fun Action.plus(input: Input): Action = Action(
-	playerPosition = playerPosition.move(input),
+	playerPosition = playerPosition + input.delta,
 	inputs = inputs + input,
 )
 
@@ -51,7 +44,9 @@ data class CouchAction(
 fun findPathsToCouches(board: Board): Collection<CouchAction> {
 	val visitedPositions = mutableSetOf(board.playerPosition)
 	val positionsToVisit = PriorityQueue<Action> { a1, a2 ->
-		a1.inputs.size.compareTo(a2.inputs.size)
+		val sizeComparison = a1.inputs.size.compareTo(a2.inputs.size)
+		if (sizeComparison != 0) sizeComparison
+		else a1.hashCode().compareTo(a2.hashCode())
 	}
 	val visitedCouches = mutableMapOf<Pair<Position, Input>, CouchAction>()
 
@@ -92,23 +87,11 @@ fun getNewCouchPosition(
 	couchOther: Position,
 	delta: PositionDelta,
 	prevPlayerPosition: Position,
-): CouchPosition = when {
-	couchTarget + delta == couchOther -> CouchPosition(
-		couchOther,
-		couchOther + delta,
-	)
-	prevPlayerPosition.x == couchOther.x -> CouchPosition(
-		Position(couchTarget.x, couchOther.y),
-		couchOther,
-	)
-	prevPlayerPosition.y == couchOther.y -> CouchPosition(
-		Position(couchOther.x, couchTarget.y),
-		couchOther,
-	)
-	else -> CouchPosition(
-		couchTarget + delta,
-		couchOther,
-	)
+): Pair<Position, Position> = when {
+	couchTarget + delta == couchOther -> couchOther to couchOther + delta
+	prevPlayerPosition.x == couchOther.x -> Position(couchTarget.x, couchOther.y) to couchOther
+	prevPlayerPosition.y == couchOther.y -> Position(couchOther.x, couchTarget.y) to couchOther
+	else -> couchTarget + delta to couchOther
 }
 
 fun CouchAction.createNewCouch(): Couch {
@@ -119,13 +102,20 @@ fun CouchAction.createNewCouch(): Couch {
 		else -> couchPosition.end to start
 	}
 
+	val (newCouchTarget, newCouchOther) = getNewCouchPosition(
+		couchTarget,
+		couchOther,
+		direction.delta,
+		playerPosition - direction.delta,
+	)
+
+	val (newStart, newEnd) = when (val start = couchPosition.start) {
+		playerPosition -> newCouchTarget to newCouchOther
+		else -> newCouchOther to newCouchTarget
+	}
+
 	return couch.copy(
-		position = getNewCouchPosition(
-			couchTarget,
-			couchOther,
-			direction.delta,
-			playerPosition - direction.delta,
-		),
+		position = CouchPosition(newStart, newEnd),
 	)
 }
 
@@ -134,11 +124,8 @@ class CouchSolver(private val initialState: Board) {
 		val visitedBoards = ConcurrentSkipListSet<BoardState>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<Board, List<Input>>> { a, b ->
 			val sizeComparison = a.second.size.compareTo(b.second.size)
-			if (sizeComparison != 0) {
-				sizeComparison
-			} else {
-				a.hashCode().compareTo(b.hashCode())
-			}
+			if (sizeComparison != 0) sizeComparison
+			else a.hashCode().compareTo(b.hashCode())
 		}
 		pendingBoards += initialState to emptyList()
 
@@ -162,7 +149,7 @@ class CouchSolver(private val initialState: Board) {
 
 				val newBoard = board.update(
 					action.playerPosition,
-					oldCouch to newCouch
+					oldCouch to newCouch,
 				)
 				val newInputs = inputs + action.inputs
 				if (newBoard.isSolved) {
@@ -192,6 +179,7 @@ class CouchSolver(private val initialState: Board) {
 		do {
 			val (board, inputs) = pendingBoards.pollFirst()
 			compute(board, inputs)
+//			println(board.toReadableString())
 		} while (pendingBoards.isNotEmpty() && solution.get() == null)
 
 		return solution.acquire
