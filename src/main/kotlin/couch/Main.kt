@@ -26,9 +26,14 @@ fun main(args: Array<String>) {
 			println("No solution found :(")
 			continue
 		}
+
+		println("\n")
+		println("—".repeat(solution.size * 2))
 		println("Found solution of length ${solution.size}")
 		println(solution
 			.zipWithNext { a, b -> if (a == b) "$a" else "$a  " }
 			.joinToString("") + solution.last())
+		println("—".repeat(solution.size * 2))
+		println()
 	}
 }

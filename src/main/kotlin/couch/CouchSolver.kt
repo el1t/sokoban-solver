@@ -1,9 +1,11 @@
 package couch
 
 import java.util.PriorityQueue
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+
+const val NUM_THREADS = 8
 
 enum class Input(val delta: PositionDelta) {
 	LEFT(PositionDelta(-1, 0)),
@@ -45,8 +47,12 @@ fun findPathsToCouches(board: Board): Collection<CouchAction> {
 	val visitedPositions = mutableSetOf(board.playerPosition)
 	val positionsToVisit = PriorityQueue<Action> { a1, a2 ->
 		val sizeComparison = a1.inputs.size.compareTo(a2.inputs.size)
-		if (sizeComparison != 0) sizeComparison
-		else a1.hashCode().compareTo(a2.hashCode())
+		when {
+			sizeComparison != 0 -> sizeComparison
+			a1.playerPosition != a2.playerPosition -> a1.playerPosition.serializedPosition
+				.compareTo(a2.playerPosition.serializedPosition)
+			else -> a1.inputs.hashCode().compareTo(a2.inputs.hashCode())
+		}
 	}
 	val visitedCouches = mutableMapOf<Pair<Position, Input>, CouchAction>()
 
@@ -109,7 +115,7 @@ fun CouchAction.createNewCouch(): Couch {
 		playerPosition - direction.delta,
 	)
 
-	val (newStart, newEnd) = when (val start = couchPosition.start) {
+	val (newStart, newEnd) = when (couchPosition.start) {
 		playerPosition -> newCouchTarget to newCouchOther
 		else -> newCouchOther to newCouchTarget
 	}
@@ -124,16 +130,20 @@ class CouchSolver(private val initialState: Board) {
 		val visitedBoards = ConcurrentSkipListSet<BoardState>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<Board, List<Input>>> { a, b ->
 			val sizeComparison = a.second.size.compareTo(b.second.size)
-			if (sizeComparison != 0) sizeComparison
-			else a.hashCode().compareTo(b.hashCode())
+			when {
+				sizeComparison != 0 -> sizeComparison
+				else -> a.hashCode().compareTo(b.hashCode())
+			}
 		}
 		pendingBoards += initialState to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
+		val actionCount = AtomicInteger()
 
 		fun compute(board: Board, inputs: List<Input>) {
 			val couchActions = findPathsToCouches(board)
-			for (action in couchActions) {
+			actionCount.accumulateAndGet(couchActions.size, Int::plus)
+			for (action in couchActions.sortedBy { it.inputs.size }) {
 				val oldCouch = action.couch
 				val newCouch = action.createNewCouch()
 				val newlyOccupiedPosition = when {
@@ -176,12 +186,52 @@ class CouchSolver(private val initialState: Board) {
 			}
 		}
 
-		do {
-			val (board, inputs) = pendingBoards.pollFirst()
-			compute(board, inputs)
-//			println(board.toReadableString())
-		} while (pendingBoards.isNotEmpty() && solution.get() == null)
+		val pool = Executors.newFixedThreadPool(NUM_THREADS)
 
+		val futures = (0 until NUM_THREADS).map { threadNum ->
+			var iterationCount = 0
+			val debugPrint = if (threadNum > 0) null
+			else {
+				{ inputs: List<Input> ->
+					if (++iterationCount > 20_000) {
+						iterationCount = 0
+						println("Action count: ${actionCount.get()}; latest input size: ${inputs.size}")
+						println("Latest inputs: ${inputs.joinToString("")}")
+					}
+				}
+			}
+			pool.submit {
+				while (solution.get() == null) {
+					var nextJob = pendingBoards.pollFirst()
+					if (nextJob == null) {
+						for (_i in 0..NUM_THREADS) {
+							TimeUnit.MILLISECONDS.sleep(100)
+							nextJob = pendingBoards.pollFirst()
+							if (nextJob != null) {
+								break
+							}
+						}
+						if (nextJob == null) {
+							// we're probably done
+							return@submit
+						}
+					}
+
+					if (solution.get() != null) {
+						return@submit
+					}
+					val (board, inputs) = nextJob
+					compute(board, inputs)
+
+					debugPrint?.invoke(inputs)
+				}
+			}
+		}
+
+		futures.forEach { it.get() }
+		pool.awaitTermination(2, TimeUnit.SECONDS)
+
+		println("Considered ${actionCount.get()} total couch actions")
 		return solution.acquire
 	}
 }
