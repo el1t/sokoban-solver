@@ -24,6 +24,7 @@ data class Board(
 	val obstacles: Set<Position>,
 	val couches: List<Couch>,
 	val goals: List<Goal>,
+	private val satisfiedGoals: Int = couches.count { validateCouch(it, goals) },
 ) {
 	companion object {
 		fun fromString(input: String): Board {
@@ -59,7 +60,13 @@ data class Board(
 				goals = goals,
 			)
 		}
+
+		private fun validateCouch(couch: Couch, goals: List<Goal>): Boolean = goals.find { goal ->
+			goal.color == couch.color && goal.position == couch.position
+		} != null
 	}
+
+	val isSolved get() = satisfiedGoals == goals.size
 
 	operator fun contains(point: Position): Boolean =
 		point.x in 0u until dimensions.x && point.y in 0u until dimensions.y
@@ -71,4 +78,20 @@ data class Board(
 			else -> couches.find { it.position.start == position || it.position.end == position }
 				?: Item.EMPTY
 		}
+
+	fun isCouchStuck(couch: Couch): Boolean {
+		return false
+	}
+
+	fun update(playerPosition: Position, oldToNewCouch: Pair<Couch, Couch>): Board {
+		val (oldCouch, newCouch) = oldToNewCouch
+		val oldDelta = if (validateCouch(oldCouch, goals)) -1 else 0
+		val newDelta = if (validateCouch(newCouch, goals)) 1 else 0
+
+		return copy(
+			playerPosition = playerPosition,
+			couches = couches.map { if (it == oldCouch) newCouch else it },
+			satisfiedGoals = satisfiedGoals + oldDelta + newDelta,
+		)
+	}
 }

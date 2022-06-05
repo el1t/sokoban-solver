@@ -1,4 +1,4 @@
-board 4,5
+board 5,4
 start 3,0
 o 0,3
 c1 2,0 2,1

@@ -13,4 +13,16 @@ value class Position(val serializedPosition: UShort) {
 
 	val x: UInt get() = serializedPosition.toUInt() shr 8
 	val y: UInt get() = (serializedPosition and 255u).toUInt()
+
+	operator fun plus(delta: PositionDelta): Position = Position(
+		x = (x.toInt() + delta.x).toUInt(),
+		y = (y.toInt() + delta.y).toUInt(),
+	)
+
+	operator fun minus(delta: PositionDelta): Position = Position(
+		x = (x.toInt() - delta.x).toUInt(),
+		y = (y.toInt() - delta.y).toUInt(),
+	)
+
+	override fun toString(): String = "Position(x=$x, y=$y)"
 }

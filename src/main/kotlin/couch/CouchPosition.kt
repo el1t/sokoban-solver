@@ -42,4 +42,8 @@ value class CouchPosition(private val serializedPosition: UInt) {
 				}
 			}
 		}
+
+	override fun toString(): String = "CouchPosition(" +
+			"start=[${start.x}, ${start.y}], " +
+			"end=[${end.x}, ${end.y}])"
 }

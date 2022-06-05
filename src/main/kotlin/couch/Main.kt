@@ -19,6 +19,10 @@ fun main(args: Array<String>) {
 		}
 
 		val board = Board.fromString(text)
-		println(board)
+
+		println("Solving...")
+		val solution = CouchSolver(board).findShortestSolution()
+		println("Found solution of length ${solution.size}")
+		println(solution)
 	}
 }
