@@ -121,7 +121,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListMap<Int, MutableMap<BoardState, Int>>()
+		val visitedBoards = ConcurrentSkipListMap<ULong, ConcurrentLinkedQueue<Pair<BoardState, Int>>>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
@@ -169,11 +169,16 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 
-				val visitedList = visitedBoards.getOrPut(newBoard.hashCode()) { mutableMapOf() }
-				if ((visitedList[newBoard] ?: Int.MAX_VALUE) <= newInputs.size) {
-					continue
+				val visitedList = visitedBoards.getOrPut(newBoard.longHashCode()) { ConcurrentLinkedQueue() }
+				val existingBoard = visitedList.find { it.first == newBoard }
+				if (existingBoard != null) {
+					if (existingBoard.second <= newInputs.size) {
+						continue
+					}
+					visitedList.remove(existingBoard)
+					pendingBoards.removeIf { it.first == existingBoard.first }
 				}
-				visitedList[newBoard] = newInputs.size
+				visitedList += newBoard to newInputs.size
 				pendingBoards += newBoard to newInputs
 			}
 		}
@@ -228,6 +233,10 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 		pool.shutdown()
 
 		println("Considered ${visitedBoards.size} total board states")
+
+//		val collisionCount = visitedBoards.values.sumOf { it.size - 1 }
+//		println("$collisionCount hash collisions")
+
 		return solution.acquire
 	}
 }

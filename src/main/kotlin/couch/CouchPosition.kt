@@ -1,7 +1,7 @@
 package couch
 
 @JvmInline
-value class CouchPosition(private val serializedPosition: UInt) : Comparable<CouchPosition> {
+value class CouchPosition(val serializedPosition: UInt) : Comparable<CouchPosition> {
 	enum class Orientation {
 		NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST,
 	}

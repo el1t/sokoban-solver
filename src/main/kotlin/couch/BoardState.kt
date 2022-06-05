@@ -75,6 +75,15 @@ data class BoardState(
 		this[index.y.toInt()][index.x.toInt()] = value
 	}
 
+	fun longHashCode(): ULong {
+		val position = playerPosition.serializedPosition.toULong()
+		val positionHash = position + 0x9e3779b9uL + (position shl 6) + (position shr 2)
+		return couches.fold(positionHash) { acc, couch ->
+			acc xor ((couch.color.toULong() shl 32) + couch.position.serializedPosition.toULong() +
+					0x9e3779b9uL + (acc shl 6) + (acc shr 2))
+		}
+	}
+
 	fun toReadableString(metadata: BoardMetadata): String {
 		val dimensions = metadata.dimensions
 		val board =
