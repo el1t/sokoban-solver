@@ -11,11 +11,12 @@ data class BoardMetadata private constructor(
 		goals = settings.goals,
 	)
 
-	private val safeCouchPositions: Map<CouchColor, Set<Position>> =
-		mutableMapOf<CouchColor, MutableSet<Position>>().apply {
+	private val safeCouchPositions: Map<Pair<CouchColor, CouchPosition.Orientation>, Set<Position>> =
+		mutableMapOf<Pair<CouchColor, CouchPosition.Orientation>, MutableSet<Position>>().apply {
 			val wallGoals = goals.filter { isFlatAgainstWall(it.position) }
 			wallGoals.forEach { goal ->
-				val safePositions = getOrPut(goal.color) { mutableSetOf() }
+				val safePositions =
+					getOrPut(goal.color to goal.position.orientation) { mutableSetOf() }
 				if (goal.position.isHorizontal) {
 					val startX = dimensions.x - goal.position.start.x
 					for (i in 0u until startX) {
@@ -56,7 +57,8 @@ data class BoardMetadata private constructor(
 		else -> false
 	}
 
-	fun isCouchOnCorrectWall(couch: Couch): Boolean = safeCouchPositions[couch.color]?.contains(
-		couch.position.start
-	) == true
+	fun isCouchOnCorrectWall(couch: Couch): Boolean =
+		safeCouchPositions[couch.color to couch.position.orientation]?.contains(
+			couch.position.start
+		) == true
 }

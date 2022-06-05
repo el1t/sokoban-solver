@@ -19,14 +19,15 @@ data class BoardState(
 			satisfiedGoals != other.satisfiedGoals -> satisfiedGoals.compareTo(other.satisfiedGoals)
 			couches.size != other.couches.size -> couches.size.compareTo(other.couches.size)
 			couches.containsAll(other.couches) -> 0
-			else -> {
-				var ret = 0
-				couches.indices.forEach { i ->
-					ret = couches[i].compareTo(other.couches[i])
-					if (ret != 0) return@forEach
-				}
-				ret
-			}
+			else -> -1
+//			else -> {
+//				var ret = 0
+//				couches.indices.forEach { i ->
+//					ret = couches[i].compareTo(other.couches[i])
+//					if (ret != 0) return@forEach
+//				}
+//				ret
+//			}
 			// look away
 //			else -> couches.hashCode().compareTo(other.couches.hashCode())
 		}
