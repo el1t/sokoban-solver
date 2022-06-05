@@ -121,20 +121,25 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListMap<ULong, ConcurrentLinkedQueue<Pair<BoardState, Int>>>()
+		val visitedBoards = ConcurrentSkipListMap<ULong, MutableMap<BoardState, Int>>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
 				else -> sizeComparison
 			}
 		}
+		val duplicateBoards = ConcurrentSkipListMap<BoardState, Int>()
 		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
 
 		fun compute(board: BoardState, inputs: List<Input>) {
+			if (duplicateBoards[board] == inputs.size) {
+				duplicateBoards.remove(board)
+				return
+			}
 			val couchActions = findPathsToCouches(board, metadata)
-			for (action in couchActions.sortedBy { it.inputs.size }) {
+			for (action in couchActions) {
 				val oldCouch = action.couch
 				val newCouch = action.createNewCouch()
 				val newlyOccupiedPosition = when {
@@ -165,25 +170,27 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 				if (newBoard.isCouchStuck(newCouch, metadata)) {
-					// couch is stuck on a wall
 					continue
 				}
 
-				val visitedList = visitedBoards.getOrPut(newBoard.longHashCode()) { ConcurrentLinkedQueue() }
-				val existingBoard = visitedList.find { it.first == newBoard }
-				if (existingBoard != null) {
-					if (existingBoard.second <= newInputs.size) {
+				val visitedCounts = visitedBoards.getOrPut(newBoard.longHashCode()) { mutableMapOf() }
+				val prevInputCount = visitedCounts[newBoard]
+				if (prevInputCount != null) {
+					if (prevInputCount <= newInputs.size) {
 						continue
 					}
-					visitedList.remove(existingBoard)
-					pendingBoards.removeIf { it.first == existingBoard.first }
+					duplicateBoards[newBoard] = prevInputCount
 				}
-				visitedList += newBoard to newInputs.size
+				visitedCounts[newBoard] = newInputs.size
 				pendingBoards += newBoard to newInputs
 			}
 		}
 
 		val pool = Executors.newFixedThreadPool(NUM_THREADS)
+
+		fun shouldContinue(): Boolean = solution.get().let {
+			it == null || it.size > pendingBoards.first().second.size
+		}
 
 		val futures = (0 until NUM_THREADS).map { threadNum ->
 			var iterationCount = 0
@@ -202,7 +209,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 				}
 			}
 			pool.submit {
-				while (solution.get() == null) {
+				while (shouldContinue()) {
 					var nextJob = pendingBoards.pollFirst()
 					if (nextJob == null) {
 						for (_i in 0..NUM_THREADS) {
@@ -218,7 +225,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 						}
 					}
 
-					if (solution.get() != null) {
+					if (!shouldContinue()) {
 						return@submit
 					}
 					val (board, inputs) = nextJob
