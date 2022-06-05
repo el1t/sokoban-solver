@@ -22,7 +22,11 @@ fun main(args: Array<String>) {
 
 		println("Solving...")
 		val solution = CouchSolver(board).findShortestSolution()
+		if (solution == null) {
+			println("No solution found :(")
+			continue
+		}
 		println("Found solution of length ${solution.size}")
-		println(solution)
+		println(solution.joinToString(""))
 	}
 }

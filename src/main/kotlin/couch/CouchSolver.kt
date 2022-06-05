@@ -9,7 +9,14 @@ enum class Input(val delta: PositionDelta) {
 	LEFT(PositionDelta(-1, 0)),
 	RIGHT(PositionDelta(1, 0)),
 	UP(PositionDelta(0, -1)),
-	DOWN(PositionDelta(0, 1)),
+	DOWN(PositionDelta(0, 1));
+
+	override fun toString(): String = when (this) {
+		Input.LEFT -> "⬅"
+		Input.RIGHT -> "➡"
+		Input.UP -> "⬆"
+		Input.DOWN -> "⬇"
+	}
 }
 
 data class Action(
@@ -123,11 +130,17 @@ fun CouchAction.createNewCouch(): Couch {
 }
 
 class CouchSolver(private val initialState: Board) {
-	fun findShortestSolution(): List<Input> {
-		val pendingBoards = ConcurrentLinkedQueue<Pair<Board, List<Input>>>(listOf(
-			initialState to emptyList(),
-		))
+	fun findShortestSolution(): List<Input>? {
 		val visitedBoards = ConcurrentSkipListSet<BoardState>()
+		val pendingBoards = ConcurrentSkipListSet<Pair<Board, List<Input>>> { a, b ->
+			val sizeComparison = a.second.size.compareTo(b.second.size)
+			if (sizeComparison != 0) {
+				sizeComparison
+			} else {
+				a.hashCode().compareTo(b.hashCode())
+			}
+		}
+		pendingBoards += initialState to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
 
@@ -177,10 +190,10 @@ class CouchSolver(private val initialState: Board) {
 		}
 
 		do {
-			val (board, inputs) = pendingBoards.remove()
+			val (board, inputs) = pendingBoards.pollFirst()
 			compute(board, inputs)
 		} while (pendingBoards.isNotEmpty() && solution.get() == null)
 
-		return requireNotNull(solution.acquire)
+		return solution.acquire
 	}
 }
