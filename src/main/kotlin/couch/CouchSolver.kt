@@ -132,11 +132,9 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
-		val actionCount = AtomicInteger()
 
 		fun compute(board: BoardState, inputs: List<Input>) {
 			val couchActions = findPathsToCouches(board, metadata)
-			actionCount.accumulateAndGet(couchActions.size, Int::plus)
 			for (action in couchActions.sortedBy { it.inputs.size }) {
 				val oldCouch = action.couch
 				val newCouch = action.createNewCouch()
@@ -190,7 +188,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 				{ inputs: List<Input> ->
 					if (++iterationCount > 20_000) {
 						iterationCount = 0
-						println("Action count: ${actionCount.get()}; latest input size: ${inputs.size}")
+						println("Visited boards: ${visitedBoards.size}; latest input size: ${inputs.size}")
 						println("Latest inputs: ${inputs.joinToString("")}")
 					}
 				}
@@ -226,7 +224,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 		futures.forEach { it.get() }
 		pool.shutdown()
 
-		println("Considered ${actionCount.get()} total couch actions")
+		println("Considered ${visitedBoards.size} total board states")
 		return solution.acquire
 	}
 }
