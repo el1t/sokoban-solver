@@ -107,21 +107,24 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListMap<ULong, MutableMap<BoardState, Int>>()
+		val visitedBoards = ConcurrentSkipListMap<ULong, Int>()
 		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
 				else -> sizeComparison
 			}
 		}
-		val duplicateBoards = ConcurrentSkipListMap<BoardState, Int>()
+		val duplicateBoards = ConcurrentSkipListMap<ULong, Int>()
 		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
 
 		fun compute(board: BoardState, inputs: List<Input>) {
-			if (duplicateBoards[board] == inputs.size) {
-				duplicateBoards.remove(board)
+			duplicateBoards[board.longHashCode()]?.let {
+				when {
+					it == inputs.size -> duplicateBoards.remove(board.longHashCode())
+					it > inputs.size -> return@let
+				}
 				return
 			}
 			val couchActions = findPathsToCouches(board, metadata)
@@ -159,15 +162,15 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 
-				val visitedCounts = visitedBoards.getOrPut(newBoard.longHashCode()) { mutableMapOf() }
-				val prevInputCount = visitedCounts[newBoard]
+				val boardHash = newBoard.longHashCode()
+				val prevInputCount = visitedBoards[boardHash]
 				if (prevInputCount != null) {
 					if (prevInputCount <= newInputs.size) {
 						continue
 					}
-					duplicateBoards[newBoard] = prevInputCount
+					duplicateBoards[boardHash] = prevInputCount
 				}
-				visitedCounts[newBoard] = newInputs.size
+				visitedBoards[boardHash] = newInputs.size
 				pendingBoards += newBoard to newInputs
 			}
 		}
@@ -180,6 +183,14 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 
 		val futures = (0 until NUM_THREADS).map { threadNum ->
 			var iterationCount = 0
+			val clearDuplicates = if (threadNum > 0) null
+			else {
+				{
+					if (iterationCount % 9_000 == 0 && duplicateBoards.size > 100_000) {
+						duplicateBoards.clear()
+					}
+				}
+			}
 			val debugPrint = if (threadNum > 0) null
 			else {
 				{ inputs: List<Input> ->
@@ -188,6 +199,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 						println(
 							"Visited boards: ${visitedBoards.size}; " +
 									"latest input size: ${inputs.size}; " +
+									"duplicate boards: ${duplicateBoards.size}; " +
 									"pending boards: ${pendingBoards.size}"
 						)
 						println("Latest inputs: ${inputs.joinToString("")}")
@@ -217,6 +229,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					val (board, inputs) = nextJob
 					compute(board, inputs)
 
+					clearDuplicates?.invoke()
 					debugPrint?.invoke(inputs)
 				}
 			}
