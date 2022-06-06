@@ -186,7 +186,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 			val clearDuplicates = if (threadNum > 0) null
 			else {
 				{
-					if (iterationCount % 9_000 == 0 && duplicateBoards.size > 100_000) {
+					if (iterationCount % 3_000 == 0 && duplicateBoards.size > 50_000) {
 						duplicateBoards.clear()
 					}
 				}

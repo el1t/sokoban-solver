@@ -24,6 +24,8 @@ value class CouchPosition(val serializedPosition: UInt) : Comparable<CouchPositi
 	// start.x == end.x
 	val isVertical: Boolean
 		get() = (((serializedPosition shr 16) xor serializedPosition)) shr 8 == 0u
+	val isDiagonal: Boolean
+		get() = !isHorizontal && !isVertical
 
 	val orientation: Orientation
 		get() {

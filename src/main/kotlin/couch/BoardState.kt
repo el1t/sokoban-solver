@@ -32,7 +32,8 @@ data class BoardState(
 //			else -> couches.hashCode().compareTo(other.couches.hashCode())
 		}
 
-	fun findItemAt(position: Position, metadata: BoardMetadata): Item = metadata.findItemAt(position)
+	fun findItemAt(position: Position, metadata: BoardMetadata): Item =
+		metadata.findItemAt(position)
 
 	private fun BoardMetadata.findItemAt(position: Position): Item =
 		when (position) {
@@ -73,24 +74,51 @@ data class BoardState(
 	}
 
 	private fun BoardMetadata.findItemsAroundPoint(point: Position) =
-		Input.values.associateWith { input -> findItemAt(point + input) }
+		Input.values.map { input -> input to findItemAt(point + input) }
 
-	private fun BoardMetadata.isPositionDead(position: Position): Boolean {
-		val items = findItemsAroundPoint(position)
-		val emptyItems = items.filter { it.value == Item.EMPTY }
-		if (emptyItems.size > 2) {
+	private fun areInputsBlocked(inputsToItems: List<Pair<Input, Item>>): Boolean {
+		val emptyItemIndices = inputsToItems.mapIndexedNotNull { index, (_, item) ->
+			if (item == Item.EMPTY) index
+			else null
+		}
+		if (emptyItemIndices.size > inputsToItems.size / 2) {
 			// guaranteed a pair of directions is empty
 			return false
 		}
-		if (emptyItems.any { items[it.key.opposite] == Item.EMPTY || items[it.key.opposite] is Couch }) {
-			// a pair of directions is empty
-			return false
+
+		for (index in emptyItemIndices) {
+			// opposite direction is always adjacent
+			val oppositeDirection = inputsToItems[index].first.opposite
+			for (i in -1..1 step 2) {
+				val checkIndex = when (val test = index + i) {
+					-1 -> inputsToItems.lastIndex
+					inputsToItems.size -> 0
+					else -> test
+				}
+				val potentialOpposite = inputsToItems[checkIndex]
+				if (potentialOpposite.first == oppositeDirection) {
+					if (potentialOpposite.second == Item.EMPTY) {
+						// a pair of directions is empty
+						return false
+					} else if (potentialOpposite.second is Couch) {
+						// couches are not handled, assume input is allowed
+						return false
+					}
+					break
+				}
+			}
 		}
+
 		return true
 	}
 
-	private fun BoardMetadata.isCouchDead(couch: Couch): Boolean {
-		return isPositionDead(couch.position.start) && isPositionDead(couch.position.end)
+	private fun BoardMetadata.isCouchDead(couch: Couch): Boolean = when {
+		couch.position.isDiagonal -> areInputsBlocked(findItemsAroundPoint(couch.position.start))
+				&& areInputsBlocked(findItemsAroundPoint(couch.position.end))
+		else -> areInputsBlocked(
+			findItemsAroundPoint(couch.position.start).filter { it.second != couch }
+				+ findItemsAroundPoint(couch.position.end).filter { it.second != couch }.reversed()
+		)
 	}
 
 	operator fun <T> Array<Array<T>>.set(index: Position, value: T) {
