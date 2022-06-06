@@ -25,6 +25,11 @@ enum class Input(internal val delta: PositionDelta) {
 		Input.UP -> "⬆"
 		Input.DOWN -> "⬇"
 	}
+
+	operator fun plus(input: Input): PositionDelta = PositionDelta(
+		delta.x + input.delta.x,
+		delta.y + input.delta.y,
+	)
 }
 
 operator fun Position.plus(input: Input): Position = this + input.delta

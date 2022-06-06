@@ -107,22 +107,22 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 	private val metadata = BoardMetadata(boardSettings)
 
 	fun findShortestSolution(): List<Input>? {
-		val visitedBoards = ConcurrentSkipListMap<ULong, Int>()
-		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState, List<Input>>> { a, b ->
+		val visitedBoards = ConcurrentSkipListMap<BoardState.SerializedState, Int>()
+		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState.SerializedState, List<Input>>> { a, b ->
 			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
 				0 -> a.first.compareTo(b.first)
 				else -> sizeComparison
 			}
 		}
-		val duplicateBoards = ConcurrentSkipListMap<ULong, Int>()
-		pendingBoards += boardSettings.toInitialBoardState() to emptyList()
+		val duplicateBoards = ConcurrentSkipListMap<BoardState.SerializedState, Int>()
+		pendingBoards += boardSettings.toInitialBoardState().serialize() to emptyList()
 
 		val solution = AtomicReference<List<Input>?>()
 
 		fun compute(board: BoardState, inputs: List<Input>) {
-			duplicateBoards[board.longHashCode()]?.let {
+			duplicateBoards[board.serialize()]?.let {
 				when {
-					it == inputs.size -> duplicateBoards.remove(board.longHashCode())
+					it == inputs.size -> duplicateBoards.remove(board.serialize())
 					it > inputs.size -> return@let
 				}
 				return
@@ -162,7 +162,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					continue
 				}
 
-				val boardHash = newBoard.longHashCode()
+				val boardHash = newBoard.serialize()
 				val prevInputCount = visitedBoards[boardHash]
 				if (prevInputCount != null) {
 					if (prevInputCount <= newInputs.size) {
@@ -171,7 +171,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					duplicateBoards[boardHash] = prevInputCount
 				}
 				visitedBoards[boardHash] = newInputs.size
-				pendingBoards += newBoard to newInputs
+				pendingBoards += newBoard.serialize() to newInputs
 			}
 		}
 
@@ -226,8 +226,8 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 					if (!shouldContinue()) {
 						return@submit
 					}
-					val (board, inputs) = nextJob
-					compute(board, inputs)
+					val (serializedBoard, inputs) = nextJob
+					compute(serializedBoard.deserialize(), inputs)
 
 					clearDuplicates?.invoke()
 					debugPrint?.invoke(inputs)
