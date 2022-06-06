@@ -6,9 +6,9 @@ data class BoardState(
 	private val satisfiedGoals: Int,
 ) : Comparable<BoardState> {
 	companion object {
-		fun validateCouch(couch: Couch, goals: GoalList): Boolean = goals.find { goal ->
+		fun validateCouch(couch: Couch, goals: GoalList): Boolean = goals.any { goal ->
 			goal.color == couch.color && goal.position == couch.position
-		} != null
+		}
 	}
 
 	override fun compareTo(other: BoardState): Int =
@@ -32,10 +32,12 @@ data class BoardState(
 //			else -> couches.hashCode().compareTo(other.couches.hashCode())
 		}
 
-	fun findItemAt(position: Position, metadata: BoardMetadata): Item =
+	fun findItemAt(position: Position, metadata: BoardMetadata): Item = metadata.findItemAt(position)
+
+	private fun BoardMetadata.findItemAt(position: Position): Item =
 		when (position) {
-			!in metadata.dimensions -> Item.WALL
-			in metadata.obstacles -> Item.OBSTACLE
+			!in dimensions -> Item.WALL
+			in obstacles -> Item.OBSTACLE
 			else -> couches.find { it.position.start == position || it.position.end == position }
 				?: Item.EMPTY
 		}
@@ -63,12 +65,32 @@ data class BoardState(
 			return false
 		}
 
-		// check if couch is stuck on wall
 		if (metadata.isFlatAgainstWall(couch.position)) {
 			return !metadata.isCouchOnCorrectWall(couch)
 		}
 
-		return false
+		return metadata.isCouchDead(couch)
+	}
+
+	private fun BoardMetadata.findItemsAroundPoint(point: Position) =
+		Input.values.associateWith { input -> findItemAt(point + input) }
+
+	private fun BoardMetadata.isPositionDead(position: Position): Boolean {
+		val items = findItemsAroundPoint(position)
+		val emptyItems = items.filter { it.value == Item.EMPTY }
+		if (emptyItems.size > 2) {
+			// guaranteed a pair of directions is empty
+			return false
+		}
+		if (emptyItems.any { items[it.key.opposite] == Item.EMPTY || items[it.key.opposite] is Couch }) {
+			// a pair of directions is empty
+			return false
+		}
+		return true
+	}
+
+	private fun BoardMetadata.isCouchDead(couch: Couch): Boolean {
+		return isPositionDead(couch.position.start) && isPositionDead(couch.position.end)
 	}
 
 	operator fun <T> Array<Array<T>>.set(index: Position, value: T) {

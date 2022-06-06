@@ -6,27 +6,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 const val NUM_THREADS = 10
 
-enum class Input(val delta: PositionDelta) {
-	LEFT(PositionDelta(-1, 0)),
-	RIGHT(PositionDelta(1, 0)),
-	UP(PositionDelta(0, -1)),
-	DOWN(PositionDelta(0, 1));
-
-	override fun toString(): String = when (this) {
-		Input.LEFT -> "⬅"
-		Input.RIGHT -> "➡"
-		Input.UP -> "⬆"
-		Input.DOWN -> "⬇"
-	}
-}
-
 data class Action(
 	val playerPosition: Position,
 	val inputs: List<Input>,
 )
 
 operator fun Action.plus(input: Input): Action = Action(
-	playerPosition = playerPosition + input.delta,
+	playerPosition = playerPosition + input,
 	inputs = inputs + input,
 )
 
@@ -59,7 +45,7 @@ fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<C
 
 	do {
 		val prevAction = positionsToVisit.remove()
-		for (input in enumValues<Input>()) {
+		for (input in Input.values) {
 			val nextAction = prevAction + input
 			when (val item = board.findItemAt(nextAction.playerPosition, metadata)) {
 				Item.OBSTACLE, Item.WALL -> continue
@@ -83,13 +69,13 @@ fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<C
 fun getNewCouchPosition(
 	couchTarget: Position,
 	couchOther: Position,
-	delta: PositionDelta,
+	direction: Input,
 	prevPlayerPosition: Position,
 ): Pair<Position, Position> = when {
-	couchTarget + delta == couchOther -> couchOther to couchOther + delta
+	couchTarget + direction == couchOther -> couchOther to couchOther + direction
 	prevPlayerPosition.x == couchOther.x -> Position(couchTarget.x, couchOther.y) to couchOther
 	prevPlayerPosition.y == couchOther.y -> Position(couchOther.x, couchTarget.y) to couchOther
-	else -> couchTarget + delta to couchOther
+	else -> couchTarget + direction to couchOther
 }
 
 fun CouchAction.createNewCouch(): Couch {
@@ -103,8 +89,8 @@ fun CouchAction.createNewCouch(): Couch {
 	val (newCouchTarget, newCouchOther) = getNewCouchPosition(
 		couchTarget,
 		couchOther,
-		direction.delta,
-		playerPosition - direction.delta,
+		direction,
+		playerPosition - direction,
 	)
 
 	val (newStart, newEnd) = when (couchPosition.start) {
