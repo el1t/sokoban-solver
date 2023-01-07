@@ -1,7 +1,7 @@
 package couch
 
 @JvmInline
-value class CouchPosition(val serializedPosition: UInt) : Comparable<CouchPosition> {
+value class CouchPosition(private val serializedPosition: UInt) : Comparable<CouchPosition> {
 	enum class Orientation {
 		NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST;
 
@@ -25,6 +25,7 @@ value class CouchPosition(val serializedPosition: UInt) : Comparable<CouchPositi
 	// start.y == end.y
 	val isHorizontal: Boolean
 		get() = (((serializedPosition shr 16) xor serializedPosition)) and 0xFFu == 0u
+
 	// start.x == end.x
 	val isVertical: Boolean
 		get() = (((serializedPosition shr 16) xor serializedPosition)) shr 8 == 0u
@@ -36,18 +37,20 @@ value class CouchPosition(val serializedPosition: UInt) : Comparable<CouchPositi
 			val s = start
 			val e = end
 			val xDiff = s.x.compareTo(e.x)
-			val yDiff = s.y.compareTo(e.y);
+			val yDiff = s.y.compareTo(e.y)
 			return when {
 				xDiff < 0 -> when {
 					yDiff < 0 -> Orientation.SOUTH_WEST
 					yDiff == 0 -> Orientation.SOUTH
 					else -> Orientation.SOUTH_EAST
 				}
+
 				xDiff == 0 -> when {
 					yDiff < 0 -> Orientation.WEST
 					yDiff > 0 -> Orientation.EAST
 					else -> throw IllegalStateException("$s and $e are identical")
 				}
+
 				else -> when {
 					yDiff < 0 -> Orientation.NORTH_WEST
 					yDiff == 0 -> Orientation.NORTH

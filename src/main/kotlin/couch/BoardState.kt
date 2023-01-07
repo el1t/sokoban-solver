@@ -12,7 +12,8 @@ data class BoardState(
 	}
 
 	@JvmInline
-	value class SerializedState private constructor(private val data: ULong) : Comparable<SerializedState> {
+	value class SerializedState private constructor(private val data: ULong) :
+		Comparable<SerializedState> {
 		companion object {
 			private fun serializeCouches(couches: List<Couch>): ULong =
 				couches.fold(0uL) { acc, couch ->
@@ -41,16 +42,17 @@ data class BoardState(
 						x = ((couchData shr 6) and 0x7uL).toUInt(),
 						y = ((couchData shr 3) and 0x7uL).toUInt(),
 					)
-					val endPosition = when (CouchPosition.Orientation.values[(couchData and 0x7uL).toInt()]) {
-						CouchPosition.Orientation.NORTH -> startPosition + Input.LEFT
-						CouchPosition.Orientation.NORTH_EAST -> startPosition + (Input.UP + Input.LEFT)
-						CouchPosition.Orientation.NORTH_WEST -> startPosition + (Input.DOWN + Input.LEFT)
-						CouchPosition.Orientation.EAST -> startPosition + Input.UP
-						CouchPosition.Orientation.WEST -> startPosition + Input.DOWN
-						CouchPosition.Orientation.SOUTH -> startPosition + Input.RIGHT
-						CouchPosition.Orientation.SOUTH_EAST -> startPosition + (Input.UP + Input.RIGHT)
-						CouchPosition.Orientation.SOUTH_WEST -> startPosition + (Input.DOWN + Input.RIGHT)
-					}
+					val endPosition =
+						when (CouchPosition.Orientation.values[(couchData and 0x7uL).toInt()]) {
+							CouchPosition.Orientation.NORTH -> startPosition + Input.LEFT
+							CouchPosition.Orientation.NORTH_EAST -> startPosition + (Input.UP + Input.LEFT)
+							CouchPosition.Orientation.NORTH_WEST -> startPosition + (Input.DOWN + Input.LEFT)
+							CouchPosition.Orientation.EAST -> startPosition + Input.UP
+							CouchPosition.Orientation.WEST -> startPosition + Input.DOWN
+							CouchPosition.Orientation.SOUTH -> startPosition + Input.RIGHT
+							CouchPosition.Orientation.SOUTH_EAST -> startPosition + (Input.UP + Input.RIGHT)
+							CouchPosition.Orientation.SOUTH_WEST -> startPosition + (Input.DOWN + Input.RIGHT)
+						}
 					ret += Couch(
 						color = ((couchData shr 9) and 0x3uL).toUByte(),
 						position = CouchPosition(
@@ -79,9 +81,10 @@ data class BoardState(
 			playerPosition != other.playerPosition -> playerPosition.compareTo(
 				other.playerPosition
 			)
+
 			satisfiedGoals != other.satisfiedGoals -> satisfiedGoals.compareTo(other.satisfiedGoals)
 //			couches.size != other.couches.size -> couches.size.compareTo(other.couches.size)
-			couches.containsAll(other.couches) -> 0
+//			couches.containsAll(other.couches) -> 0
 			else -> 1
 //			else -> {
 //				var ret = 0
@@ -178,6 +181,7 @@ data class BoardState(
 	private fun BoardMetadata.isCouchDead(couch: Couch): Boolean = when {
 		couch.position.isDiagonal -> areInputsBlocked(findItemsAroundPoint(couch.position.start))
 				&& areInputsBlocked(findItemsAroundPoint(couch.position.end))
+
 		else -> areInputsBlocked(
 			findItemsAroundPoint(couch.position.start).filter { it.second != couch }
 					+ findItemsAroundPoint(couch.position.end).filter { it.second != couch }

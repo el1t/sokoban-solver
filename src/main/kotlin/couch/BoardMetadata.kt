@@ -50,10 +50,12 @@ data class BoardMetadata private constructor(
 			val position = couchPosition.start
 			position.y + 1u == dimensions.y || position.y == 0u
 		}
+
 		couchPosition.isVertical -> {
 			val position = couchPosition.start
 			position.x + 1u == dimensions.x || position.x == 0u
 		}
+
 		else -> false
 	}
 

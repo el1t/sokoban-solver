@@ -13,17 +13,17 @@ enum class Input(internal val delta: PositionDelta) {
 
 	val opposite: Input
 		get() = when (this) {
-			Input.LEFT -> Input.RIGHT
-			Input.RIGHT -> Input.LEFT
-			Input.UP -> Input.DOWN
-			Input.DOWN -> Input.UP
+			LEFT -> RIGHT
+			RIGHT -> LEFT
+			UP -> DOWN
+			DOWN -> UP
 		}
 
 	override fun toString(): String = when (this) {
-		Input.LEFT -> "⬅"
-		Input.RIGHT -> "➡"
-		Input.UP -> "⬆"
-		Input.DOWN -> "⬇"
+		LEFT -> "⬅"
+		RIGHT -> "➡"
+		UP -> "⬆"
+		DOWN -> "⬇"
 	}
 
 	operator fun plus(input: Input): PositionDelta = PositionDelta(

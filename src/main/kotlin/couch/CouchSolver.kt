@@ -1,7 +1,10 @@
 package couch
 
-import java.util.PriorityQueue
-import java.util.concurrent.*
+import java.util.*
+import java.util.concurrent.ConcurrentSkipListMap
+import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 const val NUM_THREADS = 10
@@ -36,6 +39,7 @@ fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<C
 			sizeComparison != 0 -> sizeComparison
 			a1.playerPosition != a2.playerPosition -> a1.playerPosition.serializedPosition
 				.compareTo(a2.playerPosition.serializedPosition)
+
 			else -> -1 // a1.inputs.hashCode().compareTo(a2.inputs.hashCode())
 		}
 	}
@@ -58,6 +62,7 @@ fun findPathsToCouches(board: BoardState, metadata: BoardMetadata): Collection<C
 					visitedPositions += nextAction.playerPosition
 					positionsToVisit += nextAction
 				}
+
 				is Couch -> couchActions += nextAction.toCouchAction(item)
 			}
 		}
@@ -108,12 +113,13 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 
 	fun findShortestSolution(): List<Input>? {
 		val visitedBoards = ConcurrentSkipListMap<BoardState.SerializedState, Int>()
-		val pendingBoards = ConcurrentSkipListSet<Pair<BoardState.SerializedState, List<Input>>> { a, b ->
-			when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
-				0 -> a.first.compareTo(b.first)
-				else -> sizeComparison
+		val pendingBoards =
+			ConcurrentSkipListSet<Pair<BoardState.SerializedState, List<Input>>> { a, b ->
+				when (val sizeComparison = a.second.size.compareTo(b.second.size)) {
+					0 -> a.first.compareTo(b.first)
+					else -> sizeComparison
+				}
 			}
-		}
 		val duplicateBoards = ConcurrentSkipListMap<BoardState.SerializedState, Int>()
 		pendingBoards += boardSettings.toInitialBoardState().serialize() to emptyList()
 
@@ -134,6 +140,7 @@ class CouchSolver(private val boardSettings: BoardSettings) {
 				val newlyOccupiedPosition = when {
 					newCouch.position.start != oldCouch.position.start
 							&& newCouch.position.start != oldCouch.position.end -> newCouch.position.start
+
 					else -> newCouch.position.end
 				}
 

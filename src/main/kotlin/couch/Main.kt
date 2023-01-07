@@ -6,7 +6,7 @@ import java.io.FileNotFoundException
 fun main(args: Array<String>) {
 	while (true) {
 		print("File name (q to quit): ")
-		val fileName = readLine()
+		val fileName = readlnOrNull()
 		if (fileName.equals("q", true)) {
 			break
 		}

@@ -28,6 +28,7 @@ data class BoardSettings private constructor(
 						color = keyword.takeLastWhile { it.isDigit() }.toUByte(),
 						position = CouchPosition(coordinates.first(), coordinates.last())
 					)
+
 					"g" -> goals += Goal(
 						color = keyword.takeLastWhile { it.isDigit() }.toUByte(),
 						position = CouchPosition(coordinates.first(), coordinates.last())
@@ -49,5 +50,5 @@ data class BoardSettings private constructor(
 fun BoardSettings.toInitialBoardState(): BoardState = BoardState(
 	playerPosition = initialPlayerPosition,
 	couches = initialCouches,
-	satisfiedGoals =  initialCouches.count { BoardState.validateCouch(it, goals) },
+	satisfiedGoals = initialCouches.count { BoardState.validateCouch(it, goals) },
 )
